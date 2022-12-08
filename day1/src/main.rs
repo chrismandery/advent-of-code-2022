@@ -1,11 +1,11 @@
 use anyhow::{anyhow, Context, Result};
-use std::fs;
-use std::path::{Path};
+use std::fs::read_to_string;
+use std::path::Path;
 
 type ElfCalorieList = Vec<Vec<usize>>;
 
 fn get_calorie_list_from_input<P: AsRef<Path>>(input_path: P) -> Result<ElfCalorieList> {
-    let input = fs::read_to_string(input_path)?;
+    let input = read_to_string(input_path)?;
     let lines = input.lines();
 
     let mut elves = vec!();
