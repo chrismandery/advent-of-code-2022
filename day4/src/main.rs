@@ -12,6 +12,14 @@ impl CleaningRange {
     fn contains(&self, other: &CleaningRange) -> bool {
         self.start <= other.start && self.end >= other.end
     }
+
+    fn overlaps(&self, other: &CleaningRange) -> bool {
+        // Beside the case that other strictly contains self, we just need to check two cases:
+        // Is other's start is within self or is other's end within self
+        other.contains(&self) ||
+        (other.start >= self.start && other.start <= self.end) ||
+        (other.end >= self.start && other.end <= self.end)
+    }
 }
 
 struct CleaningPair {
@@ -54,11 +62,18 @@ fn read_input_file<P: AsRef<Path>>(input_path: P) -> Result<Vec<CleaningPair>> {
 
 fn main() {
     let cps = read_input_file("../inputs/day4_input.txt").unwrap();
-    let count = cps
+
+    let count_contains = cps
         .iter()
         .filter(|cp| cp.r1.contains(&cp.r2) || cp.r2.contains(&cp.r1))
         .count();
-    println!("Number of assignment pairs where one fully contains the other: {}", count);
+    println!("Number of assignment pairs where one fully contains the other: {}", count_contains);
+
+    let count_overlaps = cps
+        .iter()
+        .filter(|cp| cp.r1.overlaps(&cp.r2))
+        .count();
+    println!("Number of assignment pairs that overlap: {}", count_overlaps);
 }
 
 #[cfg(test)]
@@ -68,11 +83,17 @@ mod tests {
     #[test]
     fn example() {
         let cps = read_input_file("../inputs/day4_example.txt").unwrap();
-        let count = cps
+
+        let count_contains = cps
             .iter()
             .filter(|cp| cp.r1.contains(&cp.r2) || cp.r2.contains(&cp.r1))
             .count();
+        assert_eq!(count_contains, 2);
 
-        assert_eq!(count, 2);
+        let count_overlaps = cps
+            .iter()
+            .filter(|cp| cp.r1.overlaps(&cp.r2))
+            .count();
+        assert_eq!(count_overlaps, 4);
     }
 }
