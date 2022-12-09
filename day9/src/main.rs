@@ -16,10 +16,9 @@ fn calc_visited_tail_fields(moves: &[Direction]) -> HashSet<(i32, i32)> {
     let mut pos_head: (i32, i32) = (0, 0);
     let mut pos_tail: (i32, i32) = (0, 0);
     let mut visited_tail_fields = HashSet::new();
+    visited_tail_fields.insert(pos_tail);
 
     for dir in moves {
-        visited_tail_fields.insert(pos_tail);
-
         // Move head
         match dir {
             Direction::Up => { pos_head.1 -= 1; }
@@ -38,6 +37,8 @@ fn calc_visited_tail_fields(moves: &[Direction]) -> HashSet<(i32, i32)> {
                 Direction::Right => { pos_tail = (pos_head.0 - 1, pos_head.1) }
             }
         }
+
+        visited_tail_fields.insert(pos_tail);
     }
 
     visited_tail_fields
