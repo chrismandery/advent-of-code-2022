@@ -10,6 +10,22 @@ struct Dir {
 }
 
 impl Dir {
+    fn find_size_of_smallest_dir_to_delete(&self, total_disk_space: usize, required_disk_space: usize) -> Option<usize> {
+        let free_disk_space = total_disk_space - self.get_total_dir_size();
+        let required_to_free = required_disk_space - free_disk_space;
+        let mut dir_sizes = self.gather_all_dir_sizes();
+        dir_sizes.sort_unstable();
+        dir_sizes.into_iter().filter(|s| *s >= required_to_free).next()
+    }
+
+    fn gather_all_dir_sizes(&self) -> Vec<usize> {
+        let mut dir_sizes = vec!(self.get_total_dir_size());
+        for subdir in self.subdirs.values() {
+            dir_sizes.extend(subdir.gather_all_dir_sizes());
+        }
+        dir_sizes
+    }
+
     fn get_total_dir_size(&self) -> usize {
         let size_subdirs: usize = self.subdirs.values().map(|d| d.get_total_dir_size()).sum();
         let size_files: usize = self.files.values().sum();
@@ -30,6 +46,7 @@ impl Dir {
 fn main() -> Result<()> {
     let root = read_input_file("../inputs/day7_input.txt")?;
     println!("Sum of total sizes of dirs with size <= 100000 is: {}", root.get_total_dir_size_if_below_threshold(100000));
+    println!("Size of smallest dir that would be sufficient to delete is: {}", root.find_size_of_smallest_dir_to_delete(70000000, 30000000).unwrap());
 
     Ok(())
 }
@@ -99,5 +116,6 @@ mod tests {
         let root = read_input_file("../inputs/day7_example.txt").unwrap();
         assert_eq!(root.get_total_dir_size(), 48381165);
         assert_eq!(root.get_total_dir_size_if_below_threshold(100000), 95437);
+        assert_eq!(root.find_size_of_smallest_dir_to_delete(70000000, 30000000), Some(24933642));
     }
 }
