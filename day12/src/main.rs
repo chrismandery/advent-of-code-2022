@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use array2d::Array2D;
 use std::cmp::min;
 use std::fs::read_to_string;
@@ -14,23 +14,25 @@ struct Input {
 
 #[derive(Clone)]
 struct DijkstraNode {
-    distance_to_start: u32,
+    distance_to_end: u32,  // We traverse from the end position, see comment for get_optimal_step_count() function
     visited: bool
 }
 
 /// Computes the length of the optimal path with dynamic programming (Dijkstra's algorithm)
 /// The implementation is horribly inefficient and could be optimized using a heap structure as a node queue.
 /// However, for the size of the AoC grid it does not really matter.
-fn get_optimal_step_count(input: &Input) -> u32 {
+/// (Note: We are traversing the grid from the end to the start position to allow for an easy solution to the second part of the puzzle,
+/// where we can end at any height-zero-field. Whether this is allowed, is set by the allow_end_at_any_height0_position parameter.)
+fn get_optimal_step_count(input: &Input, allow_end_at_any_height0_position: bool) -> Result<u32> {
     let row_count = input.height_map.num_rows();
     let col_count = input.height_map.num_columns();
 
     // Initialize grid
     let mut grid = Array2D::filled_with(DijkstraNode {
-        distance_to_start: u32::MAX,
+        distance_to_end: u32::MAX,
         visited: false
     }, row_count, col_count);
-    grid.set(input.start_pos.0, input.start_pos.1, DijkstraNode { distance_to_start: 0, visited: false }).unwrap();
+    grid.set(input.end_pos.0, input.end_pos.1, DijkstraNode { distance_to_end: 0, visited: false }).unwrap();
 
     loop {
         // Determine unvisited node with the lowest distance from the start position (inefficient to do it like this)
@@ -39,24 +41,36 @@ fn get_optimal_step_count(input: &Input) -> u32 {
         for i in 0..row_count {
             for j in 0..col_count {
                 let n = grid.get(i, j).unwrap();
-                if !n.visited && min_distance_value.map(|v| n.distance_to_start < v).unwrap_or(true) {
-                    min_distance_value = Some(n.distance_to_start);
+                if !n.visited && min_distance_value.map(|v| n.distance_to_end < v).unwrap_or(true) {
+                    min_distance_value = Some(n.distance_to_end);
                     min_distance_pos = Some((i, j));
                 }
             }
         }
 
-        // No unvisited node found anymore and node to visit has max distance (cannot be reached)? -> Terminate
+        // No unvisited node found anymore and node to visit has max distance (cannot be reached)? -> No path possible
         if min_distance_value.is_none() || min_distance_value.unwrap() == u32::MAX {
-            break;
+            bail!("No path found!");
         }
 
+        let min_distance_pos = min_distance_pos.unwrap();
+        let min_distance_value = min_distance_value.unwrap();
 
         // Mark node as visited and store height
-        let min_distance_pos = min_distance_pos.unwrap();
         grid.get_mut(min_distance_pos.0, min_distance_pos.1).unwrap().visited = true;
-        let cur_height = input.height_map.get(min_distance_pos.0, min_distance_pos.1).unwrap();
-        // println!("Current node is {:?} with a height of {} and a distance of {}.", &min_distance_pos, cur_height, min_distance_value.unwrap());
+        let cur_height = *input.height_map.get(min_distance_pos.0, min_distance_pos.1).unwrap();
+        // println!("Current node is {:?} with a height of {} and a distance of {}.", &min_distance_pos, cur_height, min_distance_value);
+
+        // Check if current node is start position (path found)
+        if allow_end_at_any_height0_position {
+            if cur_height == 0 {
+                return Ok(min_distance_value);
+            }
+        } else {
+            if min_distance_pos == input.start_pos {
+                return Ok(min_distance_value);
+            }
+        }
 
         // Check neighbors of current node
         for (offset_row, offset_col) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
@@ -64,28 +78,26 @@ fn get_optimal_step_count(input: &Input) -> u32 {
             let neighbor_col = min_distance_pos.1 as isize + offset_col;
 
             if neighbor_row >= 0 && neighbor_row < row_count as isize && neighbor_col >= 0 && neighbor_col < col_count as isize {
-                // Check if neighbor is reachable (height <= current height + 1)
+                // Check if neighbor could reach the current node (its height >= current height - 1)
                 let neighbor_height = *input.height_map.get(neighbor_row as usize, neighbor_col as usize).unwrap();
                 // println!("Checking neighbor at {}/{}: Its height is {}.", neighbor_row, neighbor_col, neighbor_height);
-                if neighbor_height > cur_height + 1 {
+                if neighbor_height + 1 < cur_height {
                     continue;
                 }
 
                 // Update distance if we found a better way
                 let neighbor = grid.get_mut(neighbor_row as usize, neighbor_col as usize).unwrap();
-                neighbor.distance_to_start = min(neighbor.distance_to_start, min_distance_value.unwrap() + 1);
-                // println!("Updating neighbor: Its distance is now {}.", neighbor.distance_to_start);
+                neighbor.distance_to_end = min(neighbor.distance_to_end, min_distance_value + 1);
+                // println!("Updating neighbor: Its distance is now {}.", neighbor.distance_to_end);
             }
         }
     }
-
-    // Determine distance between start and end position
-    grid.get(input.end_pos.0, input.end_pos.1).unwrap().distance_to_start
 }
 
 fn main() -> Result<()> {
     let input = read_input_file("../inputs/day12_input.txt")?;
-    println!("Number of steps required: {}", get_optimal_step_count(&input));
+    println!("Number of steps required for given start position: {}", get_optimal_step_count(&input, false)?);
+    println!("Number of steps required for any start position with height 0: {}", get_optimal_step_count(&input, true)?);
 
     Ok(())
 }
@@ -135,8 +147,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn example() {
+    fn example_part1() {
         let input = read_input_file("../inputs/day12_example.txt").unwrap();
-        assert_eq!(get_optimal_step_count(&input), 31);
+        assert_eq!(get_optimal_step_count(&input, false).unwrap(), 31);
+    }
+
+    #[test]
+    fn example_part2() {
+        let input = read_input_file("../inputs/day12_example.txt").unwrap();
+        assert_eq!(get_optimal_step_count(&input, true).unwrap(), 29);
     }
 }
