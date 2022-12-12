@@ -1,5 +1,7 @@
 # :christmas_tree: Advent of Code 2022 :christmas_tree:
 
+[![Rust Tests Badge](https://github.com/chrismandery/advent-of-code-2022/actions/workflows/rust.yml/badge.svg)](https://github.com/chrismandery/advent-of-code-2022/actions/workflows/rust.yml)
+
 This repository contains my solutions for the Advent of Code 2022, written in Rust.
 
 All solutions are in the same Cargo Workspace, where the solution for puzzle X can be found in the dayX package.
