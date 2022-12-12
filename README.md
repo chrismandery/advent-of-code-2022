@@ -20,4 +20,4 @@ Every package contains unit test(s) for the example(s) from the puzzle descripti
 |  8  | Treetop Tree House      | [Solution](day8/src/main.rs)  |
 |  9  | Rope Bridge             | [Solution](day9/src/main.rs)  |
 |  10 | Cathode-Ray Tube        | [Solution](day10/src/main.rs) |
-|  11 | Monkey in the Middle    | [Solution](day/11src/main.rs) |
+|  11 | Monkey in the Middle    | [Solution](day11/src/main.rs) |
