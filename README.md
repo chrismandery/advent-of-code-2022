@@ -8,16 +8,16 @@ Every package contains unit test(s) for the example(s) from the puzzle descripti
 
 # Links to Solutions
 
-| Day |            Source             |
-|:---:|:-----------------------------:|
-|  1  | [Solution](day1/src/main.rs)  |
-|  2  | [Solution](day2/src/main.rs)  |
-|  3  | [Solution](day3/src/main.rs)  |
-|  4  | [Solution](day4/src/main.rs)  |
-|  5  | [Solution](day5/src/main.rs)  |
-|  6  | [Solution](day6/src/main.rs)  |
-|  7  | [Solution](day7/src/main.rs)  |
-|  8  | [Solution](day8/src/main.rs)  |
-|  9  | [Solution](day9/src/main.rs)  |
-|  10 | [Solution](day10/src/main.rs) |
-|  11 | [Solution](day/11src/main.rs) |
+| Day |         Puzzle          |            Source             |
+|:---:|:-----------------------:|:-----------------------------:|
+|  1  | Calorie Counting        | [Solution](day1/src/main.rs)  |
+|  2  | Rock Paper Scissors     | [Solution](day2/src/main.rs)  |
+|  3  | Rucksack Reorganization | [Solution](day3/src/main.rs)  |
+|  4  | Camp Cleanup            | [Solution](day4/src/main.rs)  |
+|  5  | Supply Stacks           | [Solution](day5/src/main.rs)  |
+|  6  | Tuning Trouble          | [Solution](day6/src/main.rs)  |
+|  7  | No Space Left On Device | [Solution](day7/src/main.rs)  |
+|  8  | Treetop Tree House      | [Solution](day8/src/main.rs)  |
+|  9  | Rope Bridge             | [Solution](day9/src/main.rs)  |
+|  10 | Cathode-Ray Tube        | [Solution](day10/src/main.rs) |
+|  11 | Monkey in the Middle    | [Solution](day/11src/main.rs) |
