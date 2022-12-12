@@ -12,33 +12,39 @@ enum Direction {
     Right
 }
 
-fn calc_visited_tail_fields(moves: &[Direction]) -> HashSet<(i32, i32)> {
-    let mut pos_head: (i32, i32) = (0, 0);
-    let mut pos_tail: (i32, i32) = (0, 0);
+fn calc_visited_tail_fields(moves: &[Direction], tail_count: usize) -> HashSet<(i32, i32)> {
+    // First index is the head, all the other ones are the tails
+    let mut positions: Vec<(i32, i32)> = std::vec::from_elem((0, 0), tail_count + 1);
     let mut visited_tail_fields = HashSet::new();
-    visited_tail_fields.insert(pos_tail);
 
     for dir in moves {
-        // Move head
+        // Move head according to given movement direction
         match dir {
-            Direction::Up => { pos_head.1 -= 1; }
-            Direction::Down => { pos_head.1 += 1; }
-            Direction::Left => { pos_head.0 -= 1; }
-            Direction::Right => { pos_head.0 += 1; }
+            Direction::Up => { positions[0].1 -= 1; }
+            Direction::Down => { positions[0].1 += 1; }
+            Direction::Left => { positions[0].0 -= 1; }
+            Direction::Right => { positions[0].0 += 1; }
         }
 
-        // Check if tail is too far away and needs to be moved
-        if (pos_head.0 - pos_tail.0).abs() > 1 || (pos_head.1 - pos_tail.1).abs() > 1 {
-            // Set tail to field beside head based on movement direction
-            match dir {
-                Direction::Up => { pos_tail = (pos_head.0, pos_head.1 + 1) }
-                Direction::Down => { pos_tail = (pos_head.0, pos_head.1 - 1) }
-                Direction::Left => { pos_tail = (pos_head.0 + 1, pos_head.1) }
-                Direction::Right => { pos_tail = (pos_head.0 - 1, pos_head.1) }
+        // Move all tails from head to tail
+        for i in 1..=tail_count {
+            // Calculate delta to earlier tail (or head)
+            let delta = (positions[i - 1].0 - positions[i].0, positions[i - 1].1 - positions[i].1);
+
+            // Move tail according to movement of earlier tail (or head) if tail is too far away and needs to be moved
+            if delta.0.abs() > 1 || delta.1.abs() > 1 {
+                // Perform movement of tail segment where both axes are clamped at -1/1
+                let clamped_delta = (delta.0.signum(), delta.1.signum());
+                positions[i] = (positions[i].0 + clamped_delta.0, positions[i].1 + clamped_delta.1)
             }
         }
 
-        visited_tail_fields.insert(pos_tail);
+        // Output all positions for debugging
+        /* let pos_str: Vec<String> = positions.iter().map(|(x, y)| format!("({}, {})", x, y)).collect();
+        println!("{}", pos_str.join(" - ")); */
+
+        // Record position of final tail
+        visited_tail_fields.insert(positions.iter().last().unwrap().clone());
     }
 
     visited_tail_fields
@@ -46,8 +52,12 @@ fn calc_visited_tail_fields(moves: &[Direction]) -> HashSet<(i32, i32)> {
 
 fn main() -> Result<()> {
     let moves = read_input_file("../inputs/day9_input.txt")?;
-    let visited_tail_fields = calc_visited_tail_fields(&moves);
-    println!("Number of fields visited by the rope tail: {}", visited_tail_fields.len());
+
+    let visited_tail_fields = calc_visited_tail_fields(&moves, 1);
+    println!("Number of fields visited by the rope tail (length 1): {}", visited_tail_fields.len());
+
+    let visited_tail_fields = calc_visited_tail_fields(&moves, 9);
+    println!("Number of fields visited by the rope tail (length 9): {}", visited_tail_fields.len());
 
     Ok(())
 }
@@ -82,9 +92,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn example() {
-        let moves = read_input_file("../inputs/day9_example.txt").unwrap();
-        let visited_tail_fields = calc_visited_tail_fields(&moves);
+    fn example_small() {
+        let moves = read_input_file("../inputs/day9_example1.txt").unwrap();
+
+        let visited_tail_fields = calc_visited_tail_fields(&moves, 1);
         assert_eq!(visited_tail_fields.len(), 13);
+
+        let visited_tail_fields = calc_visited_tail_fields(&moves, 9);
+        assert_eq!(visited_tail_fields.len(), 1);
+    }
+
+    #[test]
+    fn example_large() {
+        let moves = read_input_file("../inputs/day9_example2.txt").unwrap();
+
+        let visited_tail_fields = calc_visited_tail_fields(&moves, 9);
+        assert_eq!(visited_tail_fields.len(), 36);
     }
 }
