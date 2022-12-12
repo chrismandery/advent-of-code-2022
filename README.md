@@ -23,3 +23,4 @@ Every package contains unit test(s) for the example(s) from the puzzle descripti
 |  9  | Rope Bridge             | [Solution](day9/src/main.rs)  |
 |  10 | Cathode-Ray Tube        | [Solution](day10/src/main.rs) |
 |  11 | Monkey in the Middle    | [Solution](day11/src/main.rs) |
+|  12 | Hill Climbing Algorithm | [Solution](day12/src/main.rs) |
