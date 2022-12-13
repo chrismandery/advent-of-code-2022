@@ -1,29 +1,23 @@
 use anyhow::{bail, Context, Result};
 use itertools::{EitherOrBoth, Itertools};
+use std::cmp::Ordering;
 use std::fs::read_to_string;
 use std::path::Path;
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 enum Element {
     Number(u32),
     List(Vec<Element>)
 }
 
-#[derive(PartialEq)]
-enum CompResult {
-    Correct,
-    Same,
-    Wrong
-}
-
 type Pair = (Element, Element);
 
-fn check_if_pair_is_in_right_order(e1: &Element, e2: &Element) -> CompResult {
+fn check_if_pair_is_in_right_order(e1: &Element, e2: &Element) -> Ordering {
     match (e1, e2) {
         (Element::Number(a), Element::Number(b)) => {
-            if a < b { CompResult::Correct }
-            else if a == b { CompResult::Same }
-            else { CompResult::Wrong }
+            if a < b { Ordering::Less }
+            else if a == b { Ordering::Equal }
+            else { Ordering::Greater }
         },
         (Element::Number(_), Element::List(_)) => {
             check_if_pair_is_in_right_order(&Element::List(vec!(e1.clone())), e2)
@@ -36,16 +30,16 @@ fn check_if_pair_is_in_right_order(e1: &Element, e2: &Element) -> CompResult {
                 match i {
                     EitherOrBoth::Both(x, y) => {
                         let res = check_if_pair_is_in_right_order(x, y);
-                        if res != CompResult::Same {
+                        if res != Ordering::Equal {
                             return res;
                         }
                     },
-                    EitherOrBoth::Left(_) => { return CompResult::Wrong; }
-                    EitherOrBoth::Right(_) => { return CompResult::Correct; }
+                    EitherOrBoth::Left(_) => { return Ordering::Greater; }
+                    EitherOrBoth::Right(_) => { return Ordering::Less; }
                 }
             }
 
-            return CompResult::Same;
+            return Ordering::Equal;
         }
     }
 }
@@ -54,7 +48,7 @@ fn get_indices_of_correct_pairs(pairs: &[Pair]) -> Vec<usize> {
     let mut res = vec!();
 
     for (i, p) in pairs.iter().enumerate() {
-        if check_if_pair_is_in_right_order(&p.0, &p.1) == CompResult::Correct {
+        if check_if_pair_is_in_right_order(&p.0, &p.1) == Ordering::Less {
             res.push(i + 1);
         }
     }
@@ -64,7 +58,13 @@ fn get_indices_of_correct_pairs(pairs: &[Pair]) -> Vec<usize> {
 
 fn main() -> Result<()> {
     let pairs = read_input_file("../inputs/day13_input.txt")?;
+
+    // First part
     println!("Sum of indices of correct pairs: {}", get_indices_of_correct_pairs(&pairs).iter().sum::<usize>());
+
+    // Second part
+    let mut all_packets: Vec<Element> = pairs.into_iter().flat_map(|p| [p.0, p.1].into_iter()).collect();
+    println!("Decoder key is: {}", sort_and_get_divider_indices_product(&mut all_packets));
 
     Ok(())
 }
@@ -141,6 +141,21 @@ fn read_input_file<P: AsRef<Path>>(input_path: P) -> Result<Vec<Pair>> {
     Ok(res)
 }
 
+fn sort_and_get_divider_indices_product(packets: &mut Vec<Element>) -> usize {
+    // Add divider packets
+    let divider1 = Element::List(vec!(Element::List(vec!(Element::Number(2)))));
+    let divider2 = Element::List(vec!(Element::List(vec!(Element::Number(6)))));
+    packets.push(divider1.clone());
+    packets.push(divider2.clone());
+
+    // Sort whole list of packets using comparison function
+    packets.sort_unstable_by(|a, b| check_if_pair_is_in_right_order(&a, &b));
+
+    // Determine (1-based) indices of divider packets and return product
+    (packets.iter().position(|e| *e == divider1).expect("Divider packet not found") + 1) *
+        (packets.iter().position(|e| *e == divider2).expect("Divider packet not found") + 1)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -149,5 +164,8 @@ mod tests {
     fn example() {
         let pairs = read_input_file("../inputs/day13_example.txt").unwrap();
         assert_eq!(get_indices_of_correct_pairs(&pairs).iter().sum::<usize>(), 13);
+
+        let mut all_packets: Vec<Element> = pairs.into_iter().flat_map(|p| [p.0, p.1].into_iter()).collect();
+        assert_eq!(sort_and_get_divider_indices_product(&mut all_packets), 140);
     }
 }
