@@ -24,3 +24,4 @@ Every package contains unit test(s) for the example(s) from the puzzle descripti
 |  10 | Cathode-Ray Tube        | [Solution](day10/src/main.rs) |
 |  11 | Monkey in the Middle    | [Solution](day11/src/main.rs) |
 |  12 | Hill Climbing Algorithm | [Solution](day12/src/main.rs) |
+|  13 | Distress Signal         | [Solution](day13/src/main.rs) |
