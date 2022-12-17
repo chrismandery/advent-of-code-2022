@@ -26,3 +26,6 @@ Every package contains unit test(s) for the example(s) from the puzzle descripti
 |  12 | Hill Climbing Algorithm | [Solution](day12/src/main.rs) |
 |  13 | Distress Signal         | [Solution](day13/src/main.rs) |
 |  14 | Regolith Reservoir      | [Solution](day14/src/main.rs) |
+|  15 | Beacon Exclusion Zone   | [Solution](day15/src/main.rs) |
+|  16 | Proboscidea Volcanium   | tbd |
+|  17 | Pyroclastic Flow        | tbd |
