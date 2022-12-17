@@ -1,10 +1,11 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use regex::Regex;
+use std::cmp::max;
 use std::fs::read_to_string;
 use std::ops::Sub;
 use std::path::Path;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 struct Position(i64, i64);
 
 impl Sub for &Position {
@@ -18,7 +19,7 @@ impl Sub for &Position {
 
 struct Sensor {
     position: Position,
-    closest_beacon: Position,  // TODO not used
+    closest_beacon: Position,
     closest_beacon_dist: u64
 }
 
@@ -26,9 +27,6 @@ fn calc_positions_without_beacon(sensors: &[Sensor], row_y: i64) -> usize {
     // Determine start and end position for scanning X positions
     let start_x = sensors.iter().map(|sensor| sensor.position.0 as i64 - sensor.closest_beacon_dist as i64).min().unwrap();
     let end_x = sensors.iter().map(|sensor| sensor.position.0 as i64 + sensor.closest_beacon_dist as i64).max().unwrap();
-
-    dbg!(&start_x);
-    dbg!(&end_x);
 
     (start_x..=end_x).filter(|x| {
         let cur_pos = Position(*x, row_y);
@@ -48,9 +46,43 @@ fn calc_positions_without_beacon(sensors: &[Sensor], row_y: i64) -> usize {
     }).count()
 }
 
+fn find_missing_beacon(sensors: &[Sensor], max_coord: i64) -> Result<Position> {
+    for x in 0..=max_coord {
+        let mut y = 0;
+
+        while y <= max_coord {
+            let cur_pos = Position(x, y);
+
+            // Check why no beacon can exist at this position: Calculate for each sensors how much closer we are to the sensor than the
+            // sensor's closest beacon
+            let closer_to_sensor_than_closest_beacon = sensors.iter().filter_map(|sensor| {
+                let dist_to_sensor = &cur_pos - &sensor.position;
+
+                if dist_to_sensor <= sensor.closest_beacon_dist {
+                    Some(sensor.closest_beacon_dist - dist_to_sensor)
+                } else {
+                    None
+                }
+            }).max();
+
+            if let Some(dist) = closer_to_sensor_than_closest_beacon {
+                // Skip this many fields: If we are, e.g., 5 units closer to a sensor than its closest beacon, none of the next five fields can
+                // contain a beacon (otherwise, it would be the closest beacon to this sensor)
+                y += max(dist as i64, 1);
+            } else {
+                // We found the missing beacon
+                return Ok(Position(x, y));
+            }
+        }
+    }
+
+    Err(anyhow!("No beacon found!"))
+}
+
 fn main() -> Result<()> {
     let sensors = read_input_file("../inputs/day15_input.txt")?;
     println!("Positions without beacon in row y=2000000: {}", calc_positions_without_beacon(&sensors, 2000000));
+    println!("Position of missing (distress) beacon: {:?}", find_missing_beacon(&sensors, 4000000)?);
 
     Ok(())
 }
@@ -93,5 +125,6 @@ mod tests {
     fn example() {
         let sensors = read_input_file("../inputs/day15_example.txt").unwrap();
         assert_eq!(calc_positions_without_beacon(&sensors, 10), 26);
+        assert_eq!(find_missing_beacon(&sensors, 20).unwrap(), Position(14, 11));
     }
 }
