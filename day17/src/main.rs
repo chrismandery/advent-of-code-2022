@@ -1,12 +1,14 @@
 use anyhow::{Context, Result};
-use std::collections::{HashSet};
+use std::cmp::max;
+use std::collections::{HashMap, HashSet};
 use std::fs::read_to_string;
 use std::path::Path;
 
 /// All coordinates are one-indexed, i.e. the lowest row is y=1 and x is in [1, 7]
-type BlockPos = (i8, u32);
+type BlockPos = (i8, u64);
 type Field = HashSet<BlockPos>;
 
+#[derive(Debug, Eq, Hash, PartialEq)]
 enum BlockType {
     HLine,
     Plus,
@@ -14,6 +16,16 @@ enum BlockType {
     VLine,
     Square
 }
+
+#[derive(Eq, Hash, PartialEq)]
+struct BlockFallResult {
+    block_type: BlockType,
+    push_dir_index: usize,
+    fallen_steps: u64
+}
+
+/// Data structure used to detect cycles for the second part of the puzzle (the value stores the round and the height)
+type CycleCheckingMap = HashMap<BlockFallResult, (u64, u64)>;
 
 /// Only used for debugging
 fn _print_field(f: &Field) {
@@ -36,15 +48,21 @@ fn _print_field(f: &Field) {
     println!("+-------+");
 }
 
-fn calc_height(f: &Field) -> u32 {
+fn calc_height(f: &Field) -> u64 {
     f.iter().map(|(_, y)| *y).max().unwrap_or(0)
 }
 
-fn calc_height_after_rounds(push_directions: &[i8], num_rounds: u32) -> u32 {
+fn calc_height_after_rounds(push_directions: &[i8], num_rounds: u64) -> u64 {
     let mut f = Field::new();
     let mut push_dir_counter = 0;
+    let mut known_states = CycleCheckingMap::new();
+    let mut round = 0;
+    let mut cycle_height_adder = None;
 
-    for round in 0..num_rounds {
+    while round < num_rounds {
+        let cur_height = calc_height(&f);
+        // println!("Round {}: cur_height={} + cycle_height_adder={:?}", round, cur_height, cycle_height_adder);
+
         let block_type = match round.rem_euclid(5) {
             0 => BlockType::HLine,
             1 => BlockType::Plus,
@@ -54,12 +72,41 @@ fn calc_height_after_rounds(push_directions: &[i8], num_rounds: u32) -> u32 {
             _ => panic!("mod 5 not in 0..=4?!")
         };
 
-        let spawn_pos = (3, calc_height(&f) + 4);
-        simulate_block_fall(push_directions, &mut f, &mut push_dir_counter, &block_type, spawn_pos);
+        let spawn_pos = (3, cur_height + 4);
+        let fall_counter = simulate_block_fall(push_directions, &mut f, &mut push_dir_counter, &block_type, spawn_pos);
         // _print_field(&f);
+
+        // Check for cycles
+        let bfr = BlockFallResult {
+            block_type: block_type,
+            push_dir_index: push_dir_counter.rem_euclid(push_directions.len()),
+            fallen_steps: fall_counter
+        };
+
+        if cycle_height_adder.is_none() {
+            if let Some((last_round, last_height)) = known_states.get(&bfr) {
+                let cycle_blocks = round - last_round;
+                let cycle_height_increase = cur_height - last_height;
+                println!("Cycle found: Cycle of {} blocks leads to height increase of {}.", cycle_blocks, cycle_height_increase);
+                println!("Cycle is defined by: block_type={:?} push_dir_index={} fallen_steps={}", bfr.block_type, bfr.push_dir_index,
+                    bfr.fallen_steps);
+
+                // Fast-forward by applying the cycle to skip computational effort
+                let apply_cycles = max((num_rounds - round) / cycle_blocks, 1) - 1;
+                cycle_height_adder = Some(apply_cycles * cycle_height_increase);
+                round += apply_cycles * cycle_blocks;
+
+                println!("Applying {} cycles to save computational effort: {} of additional height added.", apply_cycles,
+                    cycle_height_adder.unwrap());
+            } else {
+                known_states.insert(bfr, (round, cur_height));
+            }
+        }
+
+        round += 1;
     }
 
-    calc_height(&f)
+    calc_height(&f) + cycle_height_adder.unwrap_or(0)
 }
 
 fn check_block_collision(f: &mut Field, block_type: &BlockType, block_pos: BlockPos) -> bool {
@@ -94,7 +141,8 @@ fn get_block_width(block_type: &BlockType) -> i8 {
 
 fn main() -> Result<()> {
     let push_directions = read_input_file("../inputs/day17_input.txt")?;
-    println!("Height of tower of rocks: {}", calc_height_after_rounds(&push_directions, 2022));
+    println!("Height of tower of rocks after 2022 blocks: {}", calc_height_after_rounds(&push_directions, 2022));
+    println!("Height of tower of rocks after 1000000000000 blocks: {}", calc_height_after_rounds(&push_directions, 1000000000000));
 
     Ok(())
 }
@@ -112,9 +160,11 @@ fn read_input_file<P: AsRef<Path>>(input_path: P) -> Result<Vec<i8>> {
     Ok(res)
 }
 
+/// Returns the number of fields the block has fallen (used for detecting cycles for the second half of the puzzle).
 fn simulate_block_fall(push_directions: &[i8], f: &mut Field, push_dir_counter: &mut usize, block_type: &BlockType,
-    spawn_pos: BlockPos) {
+    spawn_pos: BlockPos) -> u64 {
     let mut cur_pos = spawn_pos;
+    let mut fall_counter = 0;
 
     loop {
         // Push horizontally
@@ -132,6 +182,7 @@ fn simulate_block_fall(push_directions: &[i8], f: &mut Field, push_dir_counter: 
             break;
         }
         cur_pos = falldown_pos;
+        fall_counter += 1;
     }
 
     // Block has collided, at positions to field
@@ -140,6 +191,8 @@ fn simulate_block_fall(push_directions: &[i8], f: &mut Field, push_dir_counter: 
             panic!("Attempted to set a position on the field that was already occupied! (should never happen)")
         }
     }
+
+    fall_counter
 }
 
 #[cfg(test)]
@@ -147,8 +200,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn example() {
+    fn example_part1() {
         let push_directions = read_input_file("../inputs/day17_example.txt").unwrap();
         assert_eq!(calc_height_after_rounds(&push_directions, 2022), 3068);
+    }
+
+    #[test]
+    fn example_part2() {
+        let push_directions = read_input_file("../inputs/day17_example.txt").unwrap();
+        assert_eq!(calc_height_after_rounds(&push_directions, 1000000000000), 1514285714288);
     }
 }
