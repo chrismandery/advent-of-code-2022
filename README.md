@@ -27,5 +27,6 @@ Every package contains unit test(s) for the example(s) from the puzzle descripti
 |  13 | Distress Signal         | [Solution](day13/src/main.rs) |
 |  14 | Regolith Reservoir      | [Solution](day14/src/main.rs) |
 |  15 | Beacon Exclusion Zone   | [Solution](day15/src/main.rs) |
-|  16 | Proboscidea Volcanium   | tbd |
-|  17 | Pyroclastic Flow        | tbd |
+|  16 | Proboscidea Volcanium   | [Solution](day16/src/main.rs) |
+|  17 | Pyroclastic Flow        | [Solution](day17/src/main.rs) |
+|  18 | Boiling Boulders        | [Solution](day18/src/main.rs) |
