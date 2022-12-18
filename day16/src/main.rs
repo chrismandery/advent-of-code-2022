@@ -60,18 +60,37 @@ fn calc_max_releasable_pressure(valves: &ValveSet, start_pos: &str, minutes: u32
                     .sum();
                 let total_pressure_released = state.achieved_pressure_release + pressure_released_this_minute;
 
-                // Option 1: Open valve at current position
-                if !state.opened_valves.contains(&cur_pos.pos_self) {
-                    let mut opened_valves = state.opened_valves.clone();
-                    opened_valves.insert(cur_pos.pos_self.clone());
+                // In the following nested two loops, a target of None means opening the valve at the current position
+                let empty_vec_dummy = vec!();  // ugly
+                let target_iter_self = valves.get(&cur_pos.pos_self).unwrap().tunnels_to.iter().map(Some);
 
-                    track_successor_state(&mut next_states, cur_pos.clone(), opened_valves, total_pressure_released);
-                }
+                for target_self in [None].into_iter().chain(target_iter_self) {
+                    let target_iter_elephant = if let Some(elephant_pos) = &cur_pos.pos_elephant {
+                        valves.get(&elephant_pos.clone()).unwrap().tunnels_to.iter().map(Some)
+                    } else {
+                        empty_vec_dummy.iter().map(Some)
+                    };
 
-                // Option 2: Move to another location
-                for target in &valves.get(&cur_pos.pos_self).unwrap().tunnels_to {
-                    let new_pos = Position { pos_self: target.clone(), pos_elephant: None };  // TODO
-                    track_successor_state(&mut next_states, new_pos, state.opened_valves.clone(), total_pressure_released);
+                    for target_elephant in [None].into_iter().chain(target_iter_elephant) {
+                        let mut new_pos = cur_pos.clone();
+                        let mut opened_valves = state.opened_valves.clone();
+
+                        // Self: Move or open valve
+                        if let Some(tp) = target_self {
+                            new_pos.pos_self = tp.clone();
+                        } else {
+                            opened_valves.insert(cur_pos.pos_self.clone());
+                        }
+
+                        // Elephant: Move or open valve (if elephant exists)
+                        if let Some(tp) = target_elephant {
+                            new_pos.pos_elephant = Some(tp.clone());
+                        } else if let Some(elephant_pos) = &cur_pos.pos_elephant {
+                            opened_valves.insert(elephant_pos.clone());
+                        }
+
+                        track_successor_state(&mut next_states, new_pos, opened_valves, total_pressure_released);
+                    }
                 }
             }
         }
@@ -80,11 +99,11 @@ fn calc_max_releasable_pressure(valves: &ValveSet, start_pos: &str, minutes: u32
         states = next_states;
         max_achieavable_flow = states.values().map(|s| s.iter().map(|t| t.achieved_pressure_release).max().unwrap()).max().unwrap();
 
-        // Starting in minute 10, we are using a heuristics to prune "bad" states to reduce the computational effort. We are pruning all
+        // Starting in minute 6, we are using a heuristics to prune "bad" states to reduce the computational effort. We are pruning all
         // states that have considerably less than the current best achievable flow. (This might make us miss the true solution though. In
         // case that happens, this part has to be adjusted.)
-        if minute > 10 {
-            let prune_threshold = max_achieavable_flow - 100;
+        if minute > 6 {
+            let prune_threshold = max_achieavable_flow - 30;
             for states_list in states.values_mut() {
                 states_list.retain(|s| s.achieved_pressure_release >= prune_threshold);
             }
@@ -97,7 +116,8 @@ fn calc_max_releasable_pressure(valves: &ValveSet, start_pos: &str, minutes: u32
 
 fn main() -> Result<()> {
     let valves = read_input_file("../inputs/day16_input.txt")?;
-    println!("Maximum releasable pressure in 30 minutes: {}", calc_max_releasable_pressure(&valves, "AA", 30, false));
+    println!("Maximum releasable pressure in 30 minutes (without elephant): {}", calc_max_releasable_pressure(&valves, "AA", 30, false));
+    println!("Maximum releasable pressure in 26 minutes (with elephant): {}", calc_max_releasable_pressure(&valves, "AA", 26, true));
 
     Ok(())
 }
@@ -167,8 +187,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn example() {
+    fn example_part1() {
         let valves = read_input_file("../inputs/day16_example.txt").unwrap();
         assert_eq!(calc_max_releasable_pressure(&valves, "AA", 30, false), 1651);
+    }
+
+    #[test]
+    fn example_part2() {
+        let valves = read_input_file("../inputs/day16_example.txt").unwrap();
+        assert_eq!(calc_max_releasable_pressure(&valves, "AA", 26, true), 1707);
     }
 }
