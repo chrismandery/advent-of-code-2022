@@ -30,3 +30,4 @@ Every package contains unit test(s) for the example(s) from the puzzle descripti
 |  16 | Proboscidea Volcanium   | [Solution](day16/src/main.rs) |
 |  17 | Pyroclastic Flow        | [Solution](day17/src/main.rs) |
 |  18 | Boiling Boulders        | [Solution](day18/src/main.rs) |
+|  19 | Not Enough Minerals     | [Solution](day19/src/main.rs) |
