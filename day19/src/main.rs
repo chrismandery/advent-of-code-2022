@@ -56,8 +56,21 @@ struct Blueprint {
 fn get_max_geode_count(bp: &Blueprint, time_minutes: u8) -> i32 {
     let mut global_max_seen_final_geode_count = 0;  // Used internally for pruning
 
+    // We are limiting the number of robots based on the blueprint: It does not make sense to have more robots of a specific kind (except
+    // geode robots) than are necessary to produce the maximum that can be spend by any robot construction recipe.
+    let robot_limits_for_blueprint = ResourceList {
+        ore: max(max(bp.ore_robot_cost.ore, bp.clay_robot_cost.ore),
+            max(bp.obsidian_robot_cost.ore, bp.geode_robot_cost.ore)),
+        clay: max(max(bp.ore_robot_cost.clay, bp.clay_robot_cost.clay),
+            max(bp.obsidian_robot_cost.clay, bp.geode_robot_cost.clay)),
+        obsidian: max(max(bp.ore_robot_cost.obsidian, bp.clay_robot_cost.obsidian),
+            max(bp.obsidian_robot_cost.obsidian, bp.geode_robot_cost.obsidian)),
+        geode: 0  // not used
+    };
+
     get_max_geode_count_recurse(
         bp,
+        &robot_limits_for_blueprint,
         time_minutes,
         ResourceList {
             ore: 0,
@@ -75,9 +88,10 @@ fn get_max_geode_count(bp: &Blueprint, time_minutes: u8) -> i32 {
     )
 }
 
-/// This function recurses into possible option for this turn, but also includes some pruning to make the problem tractable.
-fn get_max_geode_count_recurse(bp: &Blueprint, minutes_left: u8, cur_resources: ResourceList, cur_robots: ResourceList,
-    global_max_seen_final_geode_count: &mut i32) -> i32 {
+/// This function recurses into possible option for this turn, but also includes some pruning to make the problem tractable. Regarding the
+/// robot limits, see comment in get_max_geode_count().
+fn get_max_geode_count_recurse(bp: &Blueprint, robot_limits_for_blueprint: &ResourceList, minutes_left: u8, cur_resources: ResourceList,
+    cur_robots: ResourceList, global_max_seen_final_geode_count: &mut i32) -> i32 {
     if minutes_left == 0 {
         cur_resources.geode
     } else {
@@ -102,10 +116,11 @@ fn get_max_geode_count_recurse(bp: &Blueprint, minutes_left: u8, cur_resources: 
             *global_max_seen_final_geode_count = this_state_final_geode_count_most_pessimistic
         };
         
-        // Build geode robot
+        // Build geode robot (there is no limit for geode robots)
         if cur_resources.contains(&bp.geode_robot_cost) {
             best = max(best, get_max_geode_count_recurse(
                 bp,
+                robot_limits_for_blueprint,
                 minutes_left - 1,
                 &next_resources - &bp.geode_robot_cost,
                 &cur_robots + &ResourceList { ore: 0, clay: 0, obsidian: 0, geode: 1 },
@@ -114,9 +129,10 @@ fn get_max_geode_count_recurse(bp: &Blueprint, minutes_left: u8, cur_resources: 
         }
 
         // Build obsidian robot
-        if cur_resources.contains(&bp.obsidian_robot_cost) {
+        if cur_robots.obsidian < robot_limits_for_blueprint.obsidian && cur_resources.contains(&bp.obsidian_robot_cost) {
             best = max(best, get_max_geode_count_recurse(
                 bp,
+                robot_limits_for_blueprint,
                 minutes_left - 1,
                 &next_resources - &bp.obsidian_robot_cost,
                 &cur_robots + &ResourceList { ore: 0, clay: 0, obsidian: 1, geode: 0 },
@@ -125,9 +141,10 @@ fn get_max_geode_count_recurse(bp: &Blueprint, minutes_left: u8, cur_resources: 
         }
 
         // Build clay robot
-        if cur_resources.contains(&bp.clay_robot_cost) {
+        if cur_robots.clay < robot_limits_for_blueprint.clay && cur_resources.contains(&bp.clay_robot_cost) {
             best = max(best, get_max_geode_count_recurse(
                 bp,
+                robot_limits_for_blueprint,
                 minutes_left - 1,
                 &next_resources - &bp.clay_robot_cost,
                 &cur_robots + &ResourceList { ore: 0, clay: 1, obsidian: 0, geode: 0 },
@@ -136,9 +153,10 @@ fn get_max_geode_count_recurse(bp: &Blueprint, minutes_left: u8, cur_resources: 
         }
 
         // Build ore robot
-        if cur_resources.contains(&bp.ore_robot_cost) {
+        if cur_robots.ore < robot_limits_for_blueprint.ore && cur_resources.contains(&bp.ore_robot_cost) {
             best = max(best, get_max_geode_count_recurse(
                 bp,
+                robot_limits_for_blueprint,
                 minutes_left - 1,
                 &next_resources - &bp.ore_robot_cost,
                 &cur_robots + &ResourceList { ore: 1, clay: 0, obsidian: 0, geode: 0 },
@@ -149,6 +167,7 @@ fn get_max_geode_count_recurse(bp: &Blueprint, minutes_left: u8, cur_resources: 
         // Do nothing and wait
         best = max(best, get_max_geode_count_recurse(
             bp,
+            robot_limits_for_blueprint,
             minutes_left - 1,
             &cur_resources + &cur_robots,
             cur_robots,
@@ -168,7 +187,19 @@ fn get_quality_level_sum(bps: &[Blueprint], time_minutes: u8) -> i32 {
 
 fn main() -> Result<()> {
     let blueprints = read_input_file("../inputs/day19_input.txt")?;
-    println!("Sum of quality levels: {}", get_quality_level_sum(&blueprints, 24));
+
+    println!("First part - Sum of quality levels: {}", get_quality_level_sum(&blueprints, 24));
+
+    let geode_bp1 = get_max_geode_count(&blueprints[0], 32);
+    println!("Second part - Blueprint 1: {}", geode_bp1);
+
+    let geode_bp2 = get_max_geode_count(&blueprints[1], 32);
+    println!("Second part - Blueprint 2: {}", geode_bp2);
+
+    let geode_bp3 = get_max_geode_count(&blueprints[2], 32);
+    println!("Second part - Blueprint 3: {}", geode_bp3);
+
+    println!("Second part - Product is: {}", geode_bp1 * geode_bp2 * geode_bp3);
 
     Ok(())
 }
@@ -211,10 +242,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn example_part() {
+    fn example_part1() {
         let blueprints = read_input_file("../inputs/day19_example.txt").unwrap();
         assert_eq!(get_max_geode_count(&blueprints[0], 24), 9);
         assert_eq!(get_max_geode_count(&blueprints[1], 24), 12);
         assert_eq!(get_quality_level_sum(&blueprints, 24), 33);
+    }
+
+    #[test]
+    fn example_part2() {
+        let blueprints = read_input_file("../inputs/day19_example.txt").unwrap();
+        assert_eq!(get_max_geode_count(&blueprints[0], 32), 56);
+        assert_eq!(get_max_geode_count(&blueprints[1], 32), 62);
     }
 }
