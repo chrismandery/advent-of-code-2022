@@ -1,12 +1,14 @@
 use anyhow::{Context, Result};
 use std::cmp::max;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fs::read_to_string;
 use std::path::Path;
 
 /// All coordinates are one-indexed, i.e. the lowest row is y=1 and x is in [1, 7]
 type BlockPos = (i8, u64);
 type Field = HashSet<BlockPos>;
+
+const NUM_ROWS_STATE: u64 = 100;
 
 #[derive(Debug, Eq, Hash, PartialEq)]
 enum BlockType {
@@ -21,7 +23,8 @@ enum BlockType {
 struct BlockFallResult {
     block_type: BlockType,
     push_dir_index: usize,
-    fallen_steps: u64
+    fallen_steps: u64,
+    top_rows_state: BTreeSet<(i8, u64)>  // Contains the state of the top NUM_ROWS_STATE rows
 }
 
 /// Data structure used to detect cycles for the second part of the puzzle (the value stores the round and the height)
@@ -77,10 +80,23 @@ fn calc_height_after_rounds(push_directions: &[i8], num_rounds: u64) -> u64 {
         // _print_field(&f);
 
         // Check for cycles
+        let top_rows_base_y = if cur_height >= NUM_ROWS_STATE { cur_height - NUM_ROWS_STATE } else { 0 };
+        let top_rows_state = f
+            .iter()
+            .filter_map(|(x, y)| {
+                if *y >= top_rows_base_y {
+                    Some((*x, y - top_rows_base_y))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
         let bfr = BlockFallResult {
             block_type: block_type,
             push_dir_index: push_dir_counter.rem_euclid(push_directions.len()),
-            fallen_steps: fall_counter
+            fallen_steps: fall_counter,
+            top_rows_state
         };
 
         if cycle_height_adder.is_none() {
@@ -88,8 +104,8 @@ fn calc_height_after_rounds(push_directions: &[i8], num_rounds: u64) -> u64 {
                 let cycle_blocks = round - last_round;
                 let cycle_height_increase = cur_height - last_height;
                 println!("Cycle found: Cycle of {} blocks leads to height increase of {}.", cycle_blocks, cycle_height_increase);
-                println!("Cycle is defined by: block_type={:?} push_dir_index={} fallen_steps={}", bfr.block_type, bfr.push_dir_index,
-                    bfr.fallen_steps);
+                println!("Cycle is defined by: block_type={:?} push_dir_index={} fallen_steps={} len(top_rows_state)={}",
+                    bfr.block_type, bfr.push_dir_index, bfr.fallen_steps, bfr.top_rows_state.len());
 
                 // Fast-forward by applying the cycle to skip computational effort
                 let apply_cycles = max((num_rounds - round) / cycle_blocks, 1) - 1;
