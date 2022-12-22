@@ -32,4 +32,4 @@ Every package contains unit test(s) for the example(s) from the puzzle descripti
 |  18 | Boiling Boulders         | [Solution](day18/src/main.rs) |
 |  19 | Not Enough Minerals      | [Solution](day19/src/main.rs) |
 |  20 | Grove Positioning System | [Solution](day20/src/main.rs) |
-|  21 | Monkey Math              | tbd                           |
+|  21 | Monkey Math              | [Solution](day21/src/main.rs) |
