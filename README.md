@@ -33,3 +33,4 @@ Every package contains unit test(s) for the example(s) from the puzzle descripti
 |  19 | Not Enough Minerals      | [Solution](day19/src/main.rs) |
 |  20 | Grove Positioning System | [Solution](day20/src/main.rs) |
 |  21 | Monkey Math              | [Solution](day21/src/main.rs) |
+|  22 | Monkey Map               | [Solution](day22/src/main.rs) |
