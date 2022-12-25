@@ -35,3 +35,4 @@ Every package contains unit test(s) for the example(s) from the puzzle descripti
 |  21 | Monkey Math              | [Solution](day21/src/main.rs) |
 |  22 | Monkey Map               | [Solution](day22/src/main.rs) |
 |  23 | Unstable Diffusion       | [Solution](day23/src/main.rs) |
+|  24 | Blizzard Basin           | [Solution](day24/src/main.rs) |
