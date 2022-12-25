@@ -48,7 +48,7 @@ fn get_final_position(board: &Board, moves: &[Move], cube_overflow: bool) -> Pos
                 for _ in 0..*steps {
                     if let Some(new_pos) = move_forward_one_step(&board, &cur_pos, cube_overflow) {
                         cur_pos = new_pos;
-                        println!("Moved to: x={} y={} {:?}", cur_pos.column, cur_pos.row, cur_pos.dir);
+                        // println!("Moved to: x={} y={} {:?}", cur_pos.column, cur_pos.row, cur_pos.dir);
                     } else {
                         break;
                     }
