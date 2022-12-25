@@ -1,6 +1,7 @@
 use anyhow::{bail, Result};
 use array2d::Array2D;
 use std::fs::read_to_string;
+use std::ops::Range;
 use std::path::Path;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -64,6 +65,24 @@ fn get_final_position(board: &Board, moves: &[Move], cube_overflow: bool) -> Pos
     }
 
     cur_pos
+}
+
+fn get_first_valid_in_range_x(board: &Board, x: Range<usize>, y: usize) -> usize {
+    x.clone().find(|i| *board.get(y, *i).unwrap() != Field::OffMap).expect("No overflow field found?!")
+}
+
+fn get_first_valid_in_range_y(board: &Board, x: usize, y: Range<usize>) -> usize {
+    dbg!(&x);
+    dbg!(&y);
+    y.clone().find(|i| *board.get(*i, x).unwrap() != Field::OffMap).expect("No overflow field found?!")
+}
+
+fn get_last_valid_in_range_x(board: &Board, x: Range<usize>, y: usize) -> usize {
+    x.rev().find(|i| *board.get(y, *i).unwrap() != Field::OffMap).expect("No overflow field found?!")
+}
+
+fn get_last_valid_in_range_y(board: &Board, x: usize, y: Range<usize>) -> usize {
+    y.rev().find(|i| *board.get(*i, x).unwrap() != Field::OffMap).expect("No overflow field found?!")
 }
 
 /// Determine next field to potentially move to, potentially overflowing (ugly branching structure, to be implemented more elegantly)
@@ -157,7 +176,6 @@ fn get_overflow_field(board: &Board, pos: &Position) -> Position {
 
 /// Determines the "overflow field" for the second part of the puzzle.
 fn get_overflow_field_cube(board: &Board, pos: &Position) -> Position {
-    panic!("Cube not yet implemented!");
     // Hardcoded cube layout
     //  12
     //  3
@@ -165,18 +183,18 @@ fn get_overflow_field_cube(board: &Board, pos: &Position) -> Position {
     // 6
 
     // Calculate side length of the cube to determine how we are overflowing
-    /*let cube_sl = board.num_rows() / 4;
+    let cube_sl = board.num_rows() / 4;
     if board.num_columns() != cube_sl * 3 { panic!("Board does not fit hardcoded cube structure!") }
 
     let cube_face = if pos.row < cube_sl {
         if pos.column < cube_sl { panic!("Invalid position, check hardcoded cube faces!"); }
         else if pos.column < 2 * cube_sl { 1 }
         else { 2 }
-    } else if pos.row < cube_sl {
+    } else if pos.row < 2 * cube_sl {
         if pos.column < cube_sl { panic!("Invalid position, check hardcoded cube faces!"); }
         else if pos.column < 2 * cube_sl { 3 }
         else { panic!("Invalid position, check hardcoded cube faces!"); }
-    } else if pos.row < 2 * cube_sl {
+    } else if pos.row < 3 * cube_sl {
         if pos.column < cube_sl { 4 }
         else if pos.column < 2 * cube_sl { 5 }
         else { panic!("Invalid position, check hardcoded cube faces!"); }
@@ -185,158 +203,110 @@ fn get_overflow_field_cube(board: &Board, pos: &Position) -> Position {
         else { panic!("Invalid position, check hardcoded cube faces!"); }
     };
 
+    dbg!(&cube_face);
+
     // Hardcode all possible transitions
-    match (cube_face, pos.dir) {
+    match (cube_face, &pos.dir) {
         (1, Direction::Up) => {
-            // TODO
-        },
-        (1, Direction::Right) => {
             Position {
                 row: pos.row,
-                column: board
-                    .row_iter(pos.row)
-                    .unwrap()
-                    .position(|f| *f != Field::OffMap)
-                    .expect("No overflow field found?!"),
-                dir: pos.dir.clone()
-            }
-        },
-        (1, Direction::Down) => {
-            Position {
-                row: board
-                    .column_iter(pos.column)
-                    .unwrap()
-                    .position(|f| *f != Field::OffMap)
-                    .expect("No overflow field found?!"),
-                column: pos.column,
-                dir: pos.dir.clone()
+                column: get_first_valid_in_range_x(board, 0..(cube_sl - 1), pos.column + 2 * cube_sl),
+                dir: Direction::Right
             }
         },
         (1, Direction::Left) => {
-            // TODO
+            Position {
+                row: pos.row,
+                column: get_first_valid_in_range_x(board, 0..(cube_sl - 1), 3 * cube_sl - 1 - pos.row),
+                dir: Direction::Right
+            }
         },
-
         (2, Direction::Up) => {
-            // TODO
+            Position {
+                row: get_last_valid_in_range_y(board, pos.column - 2 * cube_sl, (3 * cube_sl)..(4 * cube_sl - 1)),
+                column: pos.column - 2 * cube_sl,
+                dir: Direction::Up
+            }
         },
         (2, Direction::Right) => {
-            // TODO
+            Position {
+                row: 3 * cube_sl - 1 - pos.row,
+                column: get_last_valid_in_range_x(board, cube_sl..(2 * cube_sl - 1), 3 * cube_sl - 1 - pos.row),
+                dir: Direction::Left
+            }
         },
         (2, Direction::Down) => {
             Position {
-                row: board
-                    .column_iter(pos.column)
-                    .unwrap()
-                    .position(|f| *f != Field::OffMap)
-                    .expect("No overflow field found?!"),
-                column: pos.column,
-                dir: pos.dir.clone()
-            }
-        },
-        (2, Direction::Left) => {
-            // TODO
-        },
-
-        (3, Direction::Up) => {
-            Direction::Up => {
-                Position {
-                    row: board.num_rows() - 1 - board
-                        .column_iter(pos.column)
-                        .unwrap()
-                        .rev()
-                        .position(|f| *f != Field::OffMap)
-                        .expect("No overflow field found?!"),
-                    column: pos.column,
-                    dir: pos.dir.clone()
-                }
+                row: pos.column - cube_sl,
+                column: get_last_valid_in_range_x(board, cube_sl..(2 * cube_sl - 1), pos.column - cube_sl),
+                dir: Direction::Left
             }
         },
         (3, Direction::Right) => {
-            // TODO
-        },
-        (3, Direction::Down) => {
-            // TODO
-        },
-        (3, Direction::Left) => {
-            // TODO
-        },
-
-        (4, Direction::Up) => {
-            // TODO
-        },
-        (4, Direction::Right) => {
             Position {
-                row: pos.row,
-                column: board
-                    .row_iter(pos.row)
-                    .unwrap()
-                    .position(|f| *f != Field::OffMap)
-                    .expect("No overflow field found?!"),
-                dir: pos.dir.clone()
+                row: get_last_valid_in_range_y(board, pos.row + cube_sl, 0..(cube_sl - 1)),
+                column: pos.row + cube_sl,
+                dir: Direction::Up
             }
         },
-        (4, Direction::Down) => {
+        (3, Direction::Left) => {
             Position {
-                row: board
-                    .column_iter(pos.column)
-                    .unwrap()
-                    .position(|f| *f != Field::OffMap)
-                    .expect("No overflow field found?!"),
-                column: pos.column,
-                dir: pos.dir.clone()
+                row: get_first_valid_in_range_y(board, pos.row - cube_sl, (2 * cube_sl)..(3 * cube_sl - 1)),
+                column: pos.row,
+                dir: Direction::Down
+            }
+        },
+        (4, Direction::Up) => {
+            Position {
+                row: pos.column + cube_sl,
+                column: get_first_valid_in_range_x(board, cube_sl..(2 * cube_sl - 1), pos.column + cube_sl),
+                dir: Direction::Right
             }
         },
         (4, Direction::Left) => {
-            // TODO
-        },
-
-        (5, Direction::Up) => {
-            // TODO
+            Position {
+                row: 3 * cube_sl - 1 - pos.row,
+                column: get_first_valid_in_range_x(board, cube_sl..(2 * cube_sl - 1), 3 * cube_sl - 1 - pos.row),
+                dir: Direction::Right
+            }
         },
         (5, Direction::Right) => {
-            // TODO
+            Position {
+                row: 3 * cube_sl - 1 - pos.row,
+                column: get_last_valid_in_range_x(board, (2 * cube_sl)..(3 * cube_sl - 1), 3 * cube_sl - 1 - pos.row),
+                dir: Direction::Left
+            }
         },
         (5, Direction::Down) => {
-            // TODO
-        },
-        (5, Direction::Left) => {
-            // TODO
-        },
-
-        (6, Direction::Up) => {
-            // TODO
+            Position {
+                row: pos.row + cube_sl,
+                column: get_last_valid_in_range_x(board, 0..(cube_sl - 1), pos.row + cube_sl),
+                dir: Direction::Left
+            }
         },
         (6, Direction::Right) => {
-            // TODO
+            Position {
+                row: get_last_valid_in_range_y(board, pos.row - 2 * cube_sl, (2 * cube_sl)..(3 * cube_sl - 1)),
+                column: pos.row - 2 * cube_sl,
+                dir: Direction::Up
+            }
         },
         (6, Direction::Down) => {
-            // TODO
+            Position {
+                row: get_first_valid_in_range_y(board, pos.column + cube_sl, 0..(cube_sl - 1)),
+                column: pos.column + cube_sl,
+                dir: Direction::Down
+            }
         },
         (6, Direction::Left) => {
-            // TODO
+            Position {
+                row: get_first_valid_in_range_y(board, pos.row - 2 * cube_sl, 0..(cube_sl - 1)),
+                column: pos.row - 2 * cube_sl,
+                dir: Direction::Down
+            }
         },
         (_, _) => panic!("Transition from cube face {} with direction {:?} not implemented!", cube_face, pos.dir)
     }
-
-    match pos.dir {
-        Direction::Right => {
-            
-        },
-        Direction::Down => {
-        },
-        Direction::Left => {
-            Position {
-                row: pos.row,
-                column: board.num_columns() - 1 - board
-                    .row_iter(pos.row)
-                    .unwrap()
-                    .rev()
-                    .position(|f| *f != Field::OffMap)
-                    .expect("No overflow field found?!"),
-                dir: pos.dir.clone()
-            }
-        },
-    } */
 }
 
 fn get_password(pos: &Position) -> usize {
@@ -353,6 +323,9 @@ fn main() -> Result<()> {
     let final_pos = get_final_position(&board, &moves, false);
     println!("Part 1 - Password is: {}", get_password(&final_pos));
 
+    dbg!(&board.num_rows());
+    dbg!(&board.num_columns());
+
     let final_pos = get_final_position(&board, &moves, true);
     println!("Part 2 - Password is: {}", get_password(&final_pos));
 
@@ -360,9 +333,11 @@ fn main() -> Result<()> {
 }
 
 fn move_forward_one_step(board: &Board, pos: &Position, cube_overflow: bool) -> Option<Position> {
+    dbg!(&pos);
     let new_pos = get_next_field(board, pos, cube_overflow);
 
     // Check if new position is empty
+    dbg!(&new_pos);
     if *board.get(new_pos.row, new_pos.column).unwrap() == Field::Empty {
         Some(new_pos)
     } else {
