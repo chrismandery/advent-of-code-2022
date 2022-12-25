@@ -48,6 +48,7 @@ fn get_final_position(board: &Board, moves: &[Move], cube_overflow: bool) -> Pos
                 for _ in 0..*steps {
                     if let Some(new_pos) = move_forward_one_step(&board, &cur_pos, cube_overflow) {
                         cur_pos = new_pos;
+                        println!("Moved to: x={} y={} {:?}", cur_pos.column, cur_pos.row, cur_pos.dir);
                     } else {
                         break;
                     }
@@ -72,8 +73,6 @@ fn get_first_valid_in_range_x(board: &Board, x: Range<usize>, y: usize) -> usize
 }
 
 fn get_first_valid_in_range_y(board: &Board, x: usize, y: Range<usize>) -> usize {
-    dbg!(&x);
-    dbg!(&y);
     y.clone().find(|i| *board.get(*i, x).unwrap() != Field::OffMap).expect("No overflow field found?!")
 }
 
@@ -203,20 +202,18 @@ fn get_overflow_field_cube(board: &Board, pos: &Position) -> Position {
         else { panic!("Invalid position, check hardcoded cube faces!"); }
     };
 
-    dbg!(&cube_face);
-
     // Hardcode all possible transitions
     match (cube_face, &pos.dir) {
         (1, Direction::Up) => {
             Position {
-                row: pos.row,
+                row: pos.column + 2 * cube_sl,
                 column: get_first_valid_in_range_x(board, 0..(cube_sl - 1), pos.column + 2 * cube_sl),
                 dir: Direction::Right
             }
         },
         (1, Direction::Left) => {
             Position {
-                row: pos.row,
+                row: 3 * cube_sl - 1 - pos.row,
                 column: get_first_valid_in_range_x(board, 0..(cube_sl - 1), 3 * cube_sl - 1 - pos.row),
                 dir: Direction::Right
             }
@@ -252,7 +249,7 @@ fn get_overflow_field_cube(board: &Board, pos: &Position) -> Position {
         (3, Direction::Left) => {
             Position {
                 row: get_first_valid_in_range_y(board, pos.row - cube_sl, (2 * cube_sl)..(3 * cube_sl - 1)),
-                column: pos.row,
+                column: pos.row - cube_sl,
                 dir: Direction::Down
             }
         },
@@ -323,9 +320,6 @@ fn main() -> Result<()> {
     let final_pos = get_final_position(&board, &moves, false);
     println!("Part 1 - Password is: {}", get_password(&final_pos));
 
-    dbg!(&board.num_rows());
-    dbg!(&board.num_columns());
-
     let final_pos = get_final_position(&board, &moves, true);
     println!("Part 2 - Password is: {}", get_password(&final_pos));
 
@@ -333,11 +327,9 @@ fn main() -> Result<()> {
 }
 
 fn move_forward_one_step(board: &Board, pos: &Position, cube_overflow: bool) -> Option<Position> {
-    dbg!(&pos);
     let new_pos = get_next_field(board, pos, cube_overflow);
 
     // Check if new position is empty
-    dbg!(&new_pos);
     if *board.get(new_pos.row, new_pos.column).unwrap() == Field::Empty {
         Some(new_pos)
     } else {
